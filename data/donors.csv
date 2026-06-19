@@ -1,0 +1,13 @@
+donor_id,first_name,last_name,blood_type,phone,email,date_of_birth,gender,city,state
+1,Maya,Patel,O+,555-0101,maya.patel@example.com,1994-03-12,Female,Phoenix,AZ
+2,Daniel,Reed,A-,555-0102,daniel.reed@example.com,1988-11-04,Male,Tempe,AZ
+3,Sofia,Martinez,B+,555-0103,sofia.martinez@example.com,1997-07-19,Female,Mesa,AZ
+4,Ethan,Brooks,AB+,555-0104,ethan.brooks@example.com,1991-01-30,Male,Scottsdale,AZ
+5,Ava,Nguyen,O-,555-0105,ava.nguyen@example.com,1999-05-21,Female,Chandler,AZ
+6,Liam,Johnson,A+,555-0106,liam.johnson@example.com,1985-09-08,Male,Phoenix,AZ
+7,Nora,Kim,B-,555-0107,nora.kim@example.com,1993-12-14,Female,Glendale,AZ
+8,Marcus,Lee,AB-,555-0108,marcus.lee@example.com,1990-06-02,Male,Peoria,AZ
+9,Grace,Turner,O+,555-0109,grace.turner@example.com,1996-02-27,Female,Gilbert,AZ
+10,Noah,Scott,A+,555-0110,noah.scott@example.com,1989-10-16,Male,Surprise,AZ
+11,Isabella,Young,O-,555-0111,isabella.young@example.com,1998-04-05,Female,Tempe,AZ
+12,Caleb,Wright,B+,555-0112,caleb.wright@example.com,1992-08-23,Male,Mesa,AZ

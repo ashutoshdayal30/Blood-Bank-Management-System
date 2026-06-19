@@ -1,0 +1,6 @@
+request_id,recipient_id,hospital_id,blood_type_needed,units_requested,urgency,status,request_date
+1,1,1,A+,2,urgent,pending,2026-06-17 09:15:00
+2,2,2,O-,1,critical,pending,2026-06-17 10:20:00
+3,3,3,B+,2,routine,pending,2026-06-18 08:45:00
+4,4,4,AB+,1,routine,pending,2026-06-18 11:30:00
+5,5,5,A-,1,urgent,pending,2026-06-18 14:05:00

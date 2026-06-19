@@ -1,0 +1,2 @@
+-- Optional small reference inserts can live here later.
+-- The main sample dataset is loaded from data/*.csv by scripts/seed_database.py.

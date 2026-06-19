@@ -1,0 +1,9 @@
+recipient_id,first_name,last_name,blood_type,phone,email,date_of_birth,gender,city,state
+1,Olivia,Harris,A+,555-0301,olivia.harris@example.com,2001-09-12,Female,Phoenix,AZ
+2,James,Allen,O-,555-0302,james.allen@example.com,1978-02-25,Male,Tempe,AZ
+3,Emma,Clark,B+,555-0303,emma.clark@example.com,1986-12-03,Female,Mesa,AZ
+4,Benjamin,Lewis,AB+,555-0304,benjamin.lewis@example.com,1995-06-15,Male,Scottsdale,AZ
+5,Chloe,Walker,A-,555-0305,chloe.walker@example.com,1990-01-22,Female,Chandler,AZ
+6,Henry,Hall,O+,555-0306,henry.hall@example.com,1982-04-18,Male,Glendale,AZ
+7,Mia,Adams,B-,555-0307,mia.adams@example.com,1999-08-31,Female,Gilbert,AZ
+8,Lucas,Baker,AB-,555-0308,lucas.baker@example.com,1987-10-07,Male,Peoria,AZ

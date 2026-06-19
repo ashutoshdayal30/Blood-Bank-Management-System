@@ -1,0 +1,6 @@
+hospital_id,hospital_name,phone,city,state,address_line
+1,Desert Valley Medical Center,555-0201,Phoenix,AZ,1200 North Central Ave
+2,Sunrise Community Hospital,555-0202,Tempe,AZ,410 West Apache Blvd
+3,Mesa Regional Care,555-0203,Mesa,AZ,775 East Main St
+4,Scottsdale North Hospital,555-0204,Scottsdale,AZ,2500 North Hayden Rd
+5,Chandler General Hospital,555-0205,Chandler,AZ,880 South Arizona Ave
