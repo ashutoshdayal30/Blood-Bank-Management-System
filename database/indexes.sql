@@ -23,6 +23,15 @@ CREATE INDEX IF NOT EXISTS idx_blood_requests_status_urgency
 CREATE INDEX IF NOT EXISTS idx_blood_requests_recipient
     ON blood_requests(recipient_id);
 
+CREATE INDEX IF NOT EXISTS idx_blood_requests_hospital
+    ON blood_requests(hospital_id);
+
+CREATE INDEX IF NOT EXISTS idx_blood_request_units_request
+    ON blood_request_units(request_id);
+
+CREATE INDEX IF NOT EXISTS idx_blood_request_units_unit
+    ON blood_request_units(unit_id);
+
 CREATE INDEX IF NOT EXISTS idx_inventory_logs_unit_date
     ON inventory_logs(unit_id, created_at DESC);
 

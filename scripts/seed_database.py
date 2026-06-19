@@ -22,6 +22,7 @@ def reset_tables(cursor) -> None:
         """
         TRUNCATE TABLE
             inventory_logs,
+            blood_request_units,
             blood_requests,
             blood_units,
             donations,
@@ -39,7 +40,7 @@ def reset_sequence(cursor, table_name: str, id_column: str) -> None:
         SELECT setval(
             pg_get_serial_sequence('{table_name}', '{id_column}'),
             COALESCE((SELECT MAX({id_column}) FROM {table_name}), 1),
-            TRUE
+            (SELECT MAX({id_column}) IS NOT NULL FROM {table_name})
         );
         """
     )
@@ -127,6 +128,7 @@ def main() -> None:
             reset_sequence(cur, "hospitals", "hospital_id")
             reset_sequence(cur, "recipients", "recipient_id")
             reset_sequence(cur, "blood_requests", "request_id")
+            reset_sequence(cur, "blood_request_units", "request_unit_id")
 
     print("Seed data loaded successfully.")
 

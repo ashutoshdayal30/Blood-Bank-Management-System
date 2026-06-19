@@ -34,3 +34,15 @@ def test_blood_requests_reference_seeded_recipients_and_hospitals():
 
     assert set(requests["recipient_id"]).issubset(set(recipients["recipient_id"]))
     assert set(requests["hospital_id"]).issubset(set(hospitals["hospital_id"]))
+
+
+def test_seed_status_values_match_database_constraints():
+    blood_units = pd.read_csv(DATA_DIR / "blood_units.csv")
+    requests = pd.read_csv(DATA_DIR / "blood_requests.csv")
+
+    assert set(blood_units["status"]).issubset({"available", "reserved", "used", "expired"})
+    assert set(requests["status"]).issubset({"pending", "fulfilled", "cancelled"})
+
+
+def test_demo_queries_file_exists():
+    assert (PROJECT_ROOT / "database" / "queries.sql").exists()

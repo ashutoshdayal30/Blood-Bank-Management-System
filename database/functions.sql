@@ -1,3 +1,9 @@
+DROP FUNCTION IF EXISTS fulfill_blood_request(INTEGER, TEXT);
+DROP FUNCTION IF EXISTS compatible_units_for_recipient(INTEGER);
+DROP FUNCTION IF EXISTS available_blood_units_by_type(TEXT);
+DROP FUNCTION IF EXISTS add_inventory_log(INTEGER, INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS is_blood_compatible(TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION is_blood_compatible(
     donor_blood_type TEXT,
     recipient_blood_type TEXT
@@ -111,8 +117,8 @@ CREATE OR REPLACE FUNCTION fulfill_blood_request(
     p_changed_by TEXT DEFAULT 'system'
 )
 RETURNS TABLE (
-    issued_unit_id INTEGER,
-    issued_unit_code VARCHAR
+    used_unit_id INTEGER,
+    used_unit_code VARCHAR
 ) AS $$
 DECLARE
     request_row blood_requests%ROWTYPE;
@@ -160,21 +166,24 @@ BEGIN
         FOR UPDATE
     LOOP
         UPDATE blood_units
-        SET status = 'issued'
+        SET status = 'used'
         WHERE unit_id = selected_unit.unit_id;
+
+        INSERT INTO blood_request_units (request_id, unit_id)
+        VALUES (p_request_id, selected_unit.unit_id);
 
         PERFORM add_inventory_log(
             selected_unit.unit_id,
             p_request_id,
-            'issued',
+            'used',
             'available',
-            'issued',
+            'used',
             p_changed_by,
-            'Unit issued for blood request #' || p_request_id
+            'Unit used for blood request #' || p_request_id
         );
 
-        issued_unit_id := selected_unit.unit_id;
-        issued_unit_code := selected_unit.unit_code;
+        used_unit_id := selected_unit.unit_id;
+        used_unit_code := selected_unit.unit_code;
         RETURN NEXT;
     END LOOP;
 

@@ -1,3 +1,4 @@
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -7,7 +8,6 @@ from src.db import execute, query_df
 
 st.set_page_config(
     page_title="Blood Bank Management System",
-    page_icon="BB",
     layout="wide",
 )
 
@@ -16,9 +16,89 @@ GENDERS = ["Female", "Male", "Non-binary", "Prefer not to say"]
 URGENCY_LEVELS = ["routine", "urgent", "critical"]
 
 
+def apply_page_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 1.4rem;
+            padding-bottom: 2rem;
+            max-width: 1180px;
+        }
+        .stApp {
+            background: #f7fafc;
+            color: #1f2937;
+        }
+        [data-testid="stSidebar"] {
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+        }
+        [data-testid="stSidebar"] * {
+            color: #1f2937 !important;
+        }
+        h1, h2, h3, p, label, span {
+            color: #1f2937 !important;
+        }
+        div[data-testid="stMetric"] {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+        div[data-testid="stMetric"] * {
+            color: #1f2937 !important;
+        }
+        div.stButton > button {
+            border-radius: 6px;
+            border-color: #b91c1c;
+            color: #b91c1c;
+            background: #ffffff;
+        }
+        .section-note {
+            color: #64748b !important;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+        table.clean-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 0.92rem;
+        }
+        table.clean-table th {
+            text-align: left;
+            background: #f1f5f9;
+            color: #334155;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+        table.clean-table td {
+            color: #1f2937;
+            padding: 10px;
+            border-bottom: 1px solid #edf2f7;
+            white-space: nowrap;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def clean_text(value: str):
     value = value.strip()
     return value if value else None
+
+
+def render_html_table(df: pd.DataFrame) -> None:
+    st.markdown(
+        df.to_html(index=False, classes="clean-table", border=0),
+        unsafe_allow_html=True,
+    )
 
 
 def load_recipients() -> pd.DataFrame:
@@ -42,7 +122,11 @@ def load_hospitals() -> pd.DataFrame:
 
 
 def show_dashboard() -> None:
-    st.subheader("Dashboard")
+    st.subheader("Inventory overview")
+    st.markdown(
+        "<div class='section-note'>A quick check of available units and open request volume.</div>",
+        unsafe_allow_html=True,
+    )
 
     inventory = query_df(
         """
@@ -64,6 +148,17 @@ def show_dashboard() -> None:
         """
     )
 
+    expiring_soon = query_df(
+        """
+        SELECT unit_code, blood_type, expiry_date, storage_location
+        FROM blood_units
+        WHERE status = 'available'
+          AND expiry_date >= CURRENT_DATE
+        ORDER BY expiry_date, unit_code
+        LIMIT 5;
+        """
+    )
+
     total_available = int(inventory["available_units"].sum()) if not inventory.empty else 0
     pending_requests = 0
     if not requests.empty and "pending" in requests["status"].values:
@@ -74,16 +169,36 @@ def show_dashboard() -> None:
     col2.metric("Pending requests", pending_requests)
     col3.metric("Blood types stocked", len(inventory))
 
-    st.write("Available inventory by blood type")
+    chart_col, table_col = st.columns([1.2, 1])
+    chart_col.write("Available units by blood type")
     if inventory.empty:
-        st.info("No available units found.")
+        chart_col.info("No available units found.")
     else:
-        st.bar_chart(inventory.set_index("blood_type"))
-        st.dataframe(inventory, use_container_width=True, hide_index=True)
+        chart = (
+            alt.Chart(inventory)
+            .mark_bar(color="#b91c1c", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X("blood_type:N", title="Blood type", sort=None),
+                y=alt.Y("available_units:Q", title="Available units"),
+                tooltip=["blood_type", "available_units"],
+            )
+            .properties(height=320)
+            .configure_view(strokeWidth=0)
+            .configure(background="#ffffff")
+            .configure_axis(labelColor="#334155", titleColor="#334155", gridColor="#e5e7eb")
+        )
+        chart_col.altair_chart(chart, use_container_width=True)
+
+    table_col.write("Oldest available units")
+    if expiring_soon.empty:
+        table_col.info("No available units found.")
+    else:
+        with table_col:
+            render_html_table(expiring_soon)
 
 
 def show_donors() -> None:
-    st.subheader("Donors")
+    st.subheader("Donor registry")
 
     donors = query_df(
         """
@@ -95,7 +210,7 @@ def show_donors() -> None:
     st.dataframe(donors, use_container_width=True, hide_index=True)
 
     with st.form("add_donor_form", clear_on_submit=True):
-        st.write("Add donor")
+        st.write("Add a donor")
         col1, col2, col3 = st.columns(3)
         first_name = col1.text_input("First name")
         last_name = col2.text_input("Last name")
@@ -141,7 +256,7 @@ def show_donors() -> None:
 
 
 def show_recipients() -> None:
-    st.subheader("Recipients")
+    st.subheader("Recipient registry")
 
     recipients = query_df(
         """
@@ -153,7 +268,7 @@ def show_recipients() -> None:
     st.dataframe(recipients, use_container_width=True, hide_index=True)
 
     with st.form("add_recipient_form", clear_on_submit=True):
-        st.write("Add recipient")
+        st.write("Add a recipient")
         col1, col2, col3 = st.columns(3)
         first_name = col1.text_input("First name")
         last_name = col2.text_input("Last name")
@@ -199,11 +314,11 @@ def show_recipients() -> None:
 
 
 def show_inventory() -> None:
-    st.subheader("Blood Inventory")
+    st.subheader("Blood inventory")
 
     status_filter = st.selectbox(
         "Status",
-        ["available", "reserved", "issued", "expired", "discarded", "all"],
+        ["available", "reserved", "used", "expired", "all"],
     )
     params = []
     where_clause = ""
@@ -235,13 +350,13 @@ def show_inventory() -> None:
 
 
 def show_requests() -> None:
-    st.subheader("Requests")
+    st.subheader("Hospital requests")
 
     recipients = load_recipients()
     hospitals = load_hospitals()
 
     with st.form("create_request_form", clear_on_submit=True):
-        st.write("Create request")
+        st.write("Create a request")
         col1, col2, col3, col4 = st.columns(4)
 
         recipient_options = {
@@ -305,23 +420,23 @@ def show_requests() -> None:
 
     pending = requests[requests["status"] == "pending"] if not requests.empty else pd.DataFrame()
     if not pending.empty:
-        st.write("Fulfill pending request")
+        st.write("Fulfill a pending request")
         request_id = st.selectbox("Request ID", pending["request_id"].tolist())
         if st.button("Fulfill request"):
             try:
-                issued = query_df(
+                used_units = query_df(
                     "SELECT * FROM fulfill_blood_request(%s, %s);",
                     (int(request_id), "Streamlit app"),
                 )
                 st.success(f"Request #{request_id} fulfilled.")
-                st.dataframe(issued, use_container_width=True, hide_index=True)
+                st.dataframe(used_units, use_container_width=True, hide_index=True)
                 st.rerun()
             except Exception as exc:
                 st.error(str(exc))
 
 
 def show_matching() -> None:
-    st.subheader("Matching")
+    st.subheader("Compatibility search")
 
     recipients = load_recipients()
     recipient_options = {
@@ -342,8 +457,9 @@ def show_matching() -> None:
 
 
 def main() -> None:
-    st.title("Blood Bank Management System")
-    st.caption("Built by Ashutosh")
+    apply_page_styles()
+    st.title("Blood Bank Operations")
+    st.caption("PostgreSQL inventory tracking, request handling, and compatibility matching.")
 
     page = st.sidebar.radio(
         "Navigation",
