@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -14,6 +16,8 @@ st.set_page_config(
 
 GENDERS = ["Female", "Male", "Non-binary", "Prefer not to say"]
 URGENCY_LEVELS = ["routine", "urgent", "critical"]
+DEFAULT_BIRTH_DATE = date(1995, 1, 1)
+MAX_BIRTH_DATE = date.today() - timedelta(days=1)
 
 
 def apply_page_styles() -> None:
@@ -101,6 +105,13 @@ def render_html_table(df: pd.DataFrame) -> None:
     )
 
 
+def show_table_or_message(df: pd.DataFrame, message: str) -> None:
+    if df.empty:
+        st.info(message)
+    else:
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+
 def load_recipients() -> pd.DataFrame:
     return query_df(
         """
@@ -122,29 +133,47 @@ def load_hospitals() -> pd.DataFrame:
 
 
 def show_dashboard() -> None:
-    st.subheader("Inventory overview")
+    st.subheader("Dashboard")
     st.markdown(
-        "<div class='section-note'>A quick check of available units and open request volume.</div>",
+        "<div class='section-note'>A quick read on donors, recipients, inventory, and open requests.</div>",
         unsafe_allow_html=True,
     )
 
     inventory = query_df(
         """
-        SELECT blood_type, COUNT(*) AS available_units
-        FROM blood_units
-        WHERE status = 'available'
-          AND expiry_date >= CURRENT_DATE
-        GROUP BY blood_type
-        ORDER BY blood_type;
+        WITH blood_types AS (
+            SELECT unnest(ARRAY['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']) AS blood_type
+        )
+        SELECT
+            bt.blood_type,
+            COUNT(bu.unit_id) AS available_units
+        FROM blood_types bt
+        LEFT JOIN blood_units bu
+          ON bu.blood_type = bt.blood_type
+         AND bu.status = 'available'
+         AND bu.expiry_date >= CURRENT_DATE
+        GROUP BY bt.blood_type
+        ORDER BY
+            CASE bt.blood_type
+                WHEN 'O-' THEN 1
+                WHEN 'O+' THEN 2
+                WHEN 'A-' THEN 3
+                WHEN 'A+' THEN 4
+                WHEN 'B-' THEN 5
+                WHEN 'B+' THEN 6
+                WHEN 'AB-' THEN 7
+                WHEN 'AB+' THEN 8
+            END;
         """
     )
 
-    requests = query_df(
+    summary = query_df(
         """
-        SELECT status, COUNT(*) AS total_requests
-        FROM blood_requests
-        GROUP BY status
-        ORDER BY status;
+        SELECT
+            (SELECT COUNT(*) FROM donors) AS total_donors,
+            (SELECT COUNT(*) FROM recipients) AS total_recipients,
+            (SELECT COUNT(*) FROM blood_units WHERE status = 'available' AND expiry_date >= CURRENT_DATE) AS available_units,
+            (SELECT COUNT(*) FROM blood_requests WHERE status = 'pending') AS pending_requests;
         """
     )
 
@@ -159,19 +188,16 @@ def show_dashboard() -> None:
         """
     )
 
-    total_available = int(inventory["available_units"].sum()) if not inventory.empty else 0
-    pending_requests = 0
-    if not requests.empty and "pending" in requests["status"].values:
-        pending_requests = int(requests.loc[requests["status"] == "pending", "total_requests"].iloc[0])
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Available units", total_available)
-    col2.metric("Pending requests", pending_requests)
-    col3.metric("Blood types stocked", len(inventory))
+    totals = summary.iloc[0] if not summary.empty else {}
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total donors", int(totals.get("total_donors", 0)))
+    col2.metric("Total recipients", int(totals.get("total_recipients", 0)))
+    col3.metric("Available units", int(totals.get("available_units", 0)))
+    col4.metric("Pending requests", int(totals.get("pending_requests", 0)))
 
     chart_col, table_col = st.columns([1.2, 1])
     chart_col.write("Available units by blood type")
-    if inventory.empty:
+    if inventory.empty or int(inventory["available_units"].sum()) == 0:
         chart_col.info("No available units found.")
     else:
         chart = (
@@ -188,6 +214,7 @@ def show_dashboard() -> None:
             .configure_axis(labelColor="#334155", titleColor="#334155", gridColor="#e5e7eb")
         )
         chart_col.altair_chart(chart, use_container_width=True)
+        chart_col.dataframe(inventory, use_container_width=True, hide_index=True)
 
     table_col.write("Oldest available units")
     if expiring_soon.empty:
@@ -198,7 +225,7 @@ def show_dashboard() -> None:
 
 
 def show_donors() -> None:
-    st.subheader("Donor registry")
+    st.subheader("Donors")
 
     donors = query_df(
         """
@@ -207,7 +234,7 @@ def show_donors() -> None:
         ORDER BY donor_id DESC;
         """
     )
-    st.dataframe(donors, use_container_width=True, hide_index=True)
+    show_table_or_message(donors, "No donors found yet.")
 
     with st.form("add_donor_form", clear_on_submit=True):
         st.write("Add a donor")
@@ -219,7 +246,11 @@ def show_donors() -> None:
         col4, col5, col6 = st.columns(3)
         phone = col4.text_input("Phone")
         email = col5.text_input("Email")
-        date_of_birth = col6.date_input("Date of birth")
+        date_of_birth = col6.date_input(
+            "Date of birth",
+            value=DEFAULT_BIRTH_DATE,
+            max_value=MAX_BIRTH_DATE,
+        )
 
         col7, col8, col9 = st.columns(3)
         gender = col7.selectbox("Gender", GENDERS)
@@ -228,8 +259,8 @@ def show_donors() -> None:
 
         submitted = st.form_submit_button("Add donor")
         if submitted:
-            if not first_name.strip() or not last_name.strip():
-                st.error("First name and last name are required.")
+            if not first_name.strip() or not last_name.strip() or not city.strip() or not state.strip():
+                st.error("First name, last name, city, and state are required.")
             else:
                 execute(
                     """
@@ -256,7 +287,7 @@ def show_donors() -> None:
 
 
 def show_recipients() -> None:
-    st.subheader("Recipient registry")
+    st.subheader("Recipients")
 
     recipients = query_df(
         """
@@ -265,7 +296,7 @@ def show_recipients() -> None:
         ORDER BY recipient_id DESC;
         """
     )
-    st.dataframe(recipients, use_container_width=True, hide_index=True)
+    show_table_or_message(recipients, "No recipients found yet.")
 
     with st.form("add_recipient_form", clear_on_submit=True):
         st.write("Add a recipient")
@@ -277,7 +308,11 @@ def show_recipients() -> None:
         col4, col5, col6 = st.columns(3)
         phone = col4.text_input("Phone")
         email = col5.text_input("Email")
-        date_of_birth = col6.date_input("Date of birth")
+        date_of_birth = col6.date_input(
+            "Date of birth",
+            value=DEFAULT_BIRTH_DATE,
+            max_value=MAX_BIRTH_DATE,
+        )
 
         col7, col8, col9 = st.columns(3)
         gender = col7.selectbox("Gender", GENDERS)
@@ -286,8 +321,8 @@ def show_recipients() -> None:
 
         submitted = st.form_submit_button("Add recipient")
         if submitted:
-            if not first_name.strip() or not last_name.strip():
-                st.error("First name and last name are required.")
+            if not first_name.strip() or not last_name.strip() or not city.strip() or not state.strip():
+                st.error("First name, last name, city, and state are required.")
             else:
                 execute(
                     """
@@ -314,17 +349,20 @@ def show_recipients() -> None:
 
 
 def show_inventory() -> None:
-    st.subheader("Blood inventory")
+    st.subheader("Blood Inventory")
 
-    status_filter = st.selectbox(
-        "Status",
-        ["available", "reserved", "used", "expired", "all"],
-    )
+    col1, col2 = st.columns(2)
+    blood_type_filter = col1.selectbox("Blood type", ["all"] + BLOOD_TYPES)
+    status_filter = col2.selectbox("Status", ["all", "available", "reserved", "used", "expired"])
     params = []
-    where_clause = ""
+    filters = []
     if status_filter != "all":
-        where_clause = "WHERE bu.status = %s"
+        filters.append("bu.status = %s")
         params.append(status_filter)
+    if blood_type_filter != "all":
+        filters.append("bu.blood_type = %s")
+        params.append(blood_type_filter)
+    where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
 
     inventory = query_df(
         f"""
@@ -346,57 +384,60 @@ def show_inventory() -> None:
         """,
         params,
     )
-    st.dataframe(inventory, use_container_width=True, hide_index=True)
+    show_table_or_message(inventory, "No blood units match the selected filters.")
 
 
 def show_requests() -> None:
-    st.subheader("Hospital requests")
+    st.subheader("Blood Requests")
 
     recipients = load_recipients()
     hospitals = load_hospitals()
 
-    with st.form("create_request_form", clear_on_submit=True):
-        st.write("Create a request")
-        col1, col2, col3, col4 = st.columns(4)
+    if recipients.empty or hospitals.empty:
+        st.info("Add at least one recipient and one hospital before creating requests.")
+    else:
+        with st.form("create_request_form", clear_on_submit=True):
+            st.write("Create a request")
+            col1, col2, col3, col4 = st.columns(4)
 
-        recipient_options = {
-            f"{row.first_name} {row.last_name} ({row.blood_type})": int(row.recipient_id)
-            for row in recipients.itertuples()
-        }
-        hospital_options = {
-            row.hospital_name: int(row.hospital_id)
-            for row in hospitals.itertuples()
-        }
+            recipient_options = {
+                f"{row.first_name} {row.last_name} ({row.blood_type})": int(row.recipient_id)
+                for row in recipients.itertuples()
+            }
+            hospital_options = {
+                row.hospital_name: int(row.hospital_id)
+                for row in hospitals.itertuples()
+            }
 
-        recipient_label = col1.selectbox("Recipient", list(recipient_options.keys()))
-        hospital_label = col2.selectbox("Hospital", list(hospital_options.keys()))
-        units_requested = col3.number_input("Units", min_value=1, max_value=10, value=1)
-        urgency = col4.selectbox("Urgency", URGENCY_LEVELS)
+            recipient_label = col1.selectbox("Recipient", list(recipient_options.keys()))
+            hospital_label = col2.selectbox("Hospital", list(hospital_options.keys()))
+            units_requested = col3.number_input("Units", min_value=1, max_value=10, value=1)
+            urgency = col4.selectbox("Urgency", URGENCY_LEVELS)
 
-        submitted = st.form_submit_button("Create request")
-        if submitted:
-            recipient_id = recipient_options[recipient_label]
-            recipient_blood_type = recipients.loc[
-                recipients["recipient_id"] == recipient_id, "blood_type"
-            ].iloc[0]
-            execute(
-                """
-                INSERT INTO blood_requests (
-                    recipient_id, hospital_id, blood_type_needed,
-                    units_requested, urgency, status
+            submitted = st.form_submit_button("Create request")
+            if submitted:
+                recipient_id = recipient_options[recipient_label]
+                recipient_blood_type = recipients.loc[
+                    recipients["recipient_id"] == recipient_id, "blood_type"
+                ].iloc[0]
+                execute(
+                    """
+                    INSERT INTO blood_requests (
+                        recipient_id, hospital_id, blood_type_needed,
+                        units_requested, urgency, status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, 'pending');
+                    """,
+                    (
+                        recipient_id,
+                        hospital_options[hospital_label],
+                        recipient_blood_type,
+                        int(units_requested),
+                        urgency,
+                    ),
                 )
-                VALUES (%s, %s, %s, %s, %s, 'pending');
-                """,
-                (
-                    recipient_id,
-                    hospital_options[hospital_label],
-                    recipient_blood_type,
-                    int(units_requested),
-                    urgency,
-                ),
-            )
-            st.success("Request created.")
-            st.rerun()
+                st.success("Request created.")
+                st.rerun()
 
     requests = query_df(
         """
@@ -418,7 +459,7 @@ def show_requests() -> None:
         """
     )
     display_requests = requests.drop(columns=["recipient_id"]) if "recipient_id" in requests else requests
-    st.dataframe(display_requests, use_container_width=True, hide_index=True)
+    show_table_or_message(display_requests, "No blood requests found yet.")
 
     pending = requests[requests["status"] == "pending"] if not requests.empty else pd.DataFrame()
     if not pending.empty:
@@ -465,9 +506,13 @@ def show_requests() -> None:
 
 
 def show_matching() -> None:
-    st.subheader("Compatibility search")
+    st.subheader("Match Blood Units")
 
     recipients = load_recipients()
+    if recipients.empty:
+        st.info("No recipients found yet. Add a recipient before matching blood units.")
+        return
+
     recipient_options = {
         f"{row.first_name} {row.last_name} ({row.blood_type})": int(row.recipient_id)
         for row in recipients.itertuples()
@@ -492,7 +537,14 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigation",
-        ["Dashboard", "Donors", "Recipients", "Blood Inventory", "Requests", "Matching"],
+        [
+            "Dashboard",
+            "Donors",
+            "Recipients",
+            "Blood Inventory",
+            "Blood Requests",
+            "Match Blood Units",
+        ],
     )
 
     try:
@@ -504,9 +556,9 @@ def main() -> None:
             show_recipients()
         elif page == "Blood Inventory":
             show_inventory()
-        elif page == "Requests":
+        elif page == "Blood Requests":
             show_requests()
-        elif page == "Matching":
+        elif page == "Match Blood Units":
             show_matching()
     except Exception as exc:
         st.error("The app could not reach the database or run the query.")

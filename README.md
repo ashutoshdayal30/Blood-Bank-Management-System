@@ -12,7 +12,7 @@ I made this project to practice relational database design in a realistic workfl
 - PostgreSQL functions and procedures for blood compatibility, inventory lookup, matching, request fulfillment, and audit logs
 - CSV seed data with fake sample records
 - Python scripts for database setup and seeding
-- Streamlit dashboard for viewing inventory, adding records, creating requests, and finding compatible units
+- Streamlit pages for dashboard metrics, donors, recipients, inventory, requests, and matching
 - Basic pytest checks for helper logic and seed data quality
 
 ## Tech Stack
@@ -112,6 +112,8 @@ Run the app:
 ```bash
 streamlit run app.py
 ```
+
+The sidebar includes pages for Dashboard, Donors, Recipients, Blood Inventory, Blood Requests, and Match Blood Units.
 
 ## Stored Functions and Procedure
 
