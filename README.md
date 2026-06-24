@@ -9,7 +9,7 @@ I made this project to practice relational database design in a realistic workfl
 - Normalized PostgreSQL schema for donors, donations, blood units, recipients, hospitals, requests, matched units, and inventory logs
 - Primary keys, foreign keys, check constraints, unique constraints, and date checks
 - Useful indexes for inventory, request, donor, recipient, and join queries
-- PostgreSQL functions for blood compatibility, inventory counts, matching, request fulfillment, and audit logs
+- PostgreSQL functions and procedures for blood compatibility, inventory lookup, matching, request fulfillment, and audit logs
 - CSV seed data with fake sample records
 - Python scripts for database setup and seeding
 - Streamlit dashboard for viewing inventory, adding records, creating requests, and finding compatible units
@@ -113,6 +113,18 @@ Run the app:
 streamlit run app.py
 ```
 
+## Stored Functions and Procedure
+
+Most of the blood bank workflow is handled in PostgreSQL instead of being hidden in Python code.
+
+- `get_available_units_by_blood_type(input_blood_type)` returns available units for one blood type with donor name, collection date, expiration date, and status.
+- `get_compatible_blood_types(recipient_blood_type)` returns donor blood types that can be given to a recipient blood type.
+- `find_matching_units_for_recipient(recipient_id)` returns available units that match one recipient.
+- `fulfill_blood_request(request_id, blood_unit_id)` is a stored procedure that marks a request as fulfilled, marks the selected unit as used, records the request/unit match, and writes an inventory log row.
+- `add_inventory_log(...)` is a helper function used by the fulfillment workflow.
+
+The app uses these database routines in the Matching and Requests pages. The Matching page calls `find_matching_units_for_recipient`, and the Requests page calls `fulfill_blood_request` after a compatible unit is selected.
+
 ## Demo SQL
 
 The file `database/queries.sql` has ready-to-run SQL examples for:
@@ -124,6 +136,7 @@ The file `database/queries.sql` has ready-to-run SQL examples for:
 - request to matched blood unit joins
 - compatible unit lookup for pending requests
 - recent inventory log review
+- stored function and procedure examples
 
 Example:
 

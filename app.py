@@ -402,6 +402,7 @@ def show_requests() -> None:
         """
         SELECT
             br.request_id,
+            br.recipient_id,
             r.first_name || ' ' || r.last_name AS recipient,
             h.hospital_name,
             br.blood_type_needed,
@@ -416,23 +417,51 @@ def show_requests() -> None:
         ORDER BY br.request_date DESC;
         """
     )
-    st.dataframe(requests, use_container_width=True, hide_index=True)
+    display_requests = requests.drop(columns=["recipient_id"]) if "recipient_id" in requests else requests
+    st.dataframe(display_requests, use_container_width=True, hide_index=True)
 
     pending = requests[requests["status"] == "pending"] if not requests.empty else pd.DataFrame()
     if not pending.empty:
         st.write("Fulfill a pending request")
-        request_id = st.selectbox("Request ID", pending["request_id"].tolist())
+        request_options = {
+            f"Request #{row.request_id} - {row.recipient} ({row.blood_type_needed})": (
+                int(row.request_id),
+                int(row.recipient_id),
+            )
+            for row in pending.itertuples()
+        }
+        request_label = st.selectbox("Request", list(request_options.keys()))
+        request_id, request_recipient_id = request_options[request_label]
+
+        matching_units = query_df(
+            "SELECT * FROM find_matching_units_for_recipient(%s);",
+            (request_recipient_id,),
+        )
+
+        if matching_units.empty:
+            st.info("No compatible available units found for this request.")
+        else:
+            st.dataframe(matching_units, use_container_width=True, hide_index=True)
+            unit_options = {
+                f"{row.unit_code} - {row.donor_blood_type} from {row.donor_name}": int(row.unit_id)
+                for row in matching_units.itertuples()
+            }
+            unit_label = st.selectbox("Blood unit", list(unit_options.keys()))
+            blood_unit_id = unit_options[unit_label]
+
         if st.button("Fulfill request"):
-            try:
-                used_units = query_df(
-                    "SELECT * FROM fulfill_blood_request(%s, %s);",
-                    (int(request_id), "Streamlit app"),
-                )
-                st.success(f"Request #{request_id} fulfilled.")
-                st.dataframe(used_units, use_container_width=True, hide_index=True)
-                st.rerun()
-            except Exception as exc:
-                st.error(str(exc))
+            if matching_units.empty:
+                st.error("Choose a compatible unit before fulfilling the request.")
+            else:
+                try:
+                    execute(
+                        "CALL fulfill_blood_request(%s, %s);",
+                        (request_id, blood_unit_id),
+                    )
+                    st.success(f"Request #{request_id} fulfilled with unit #{blood_unit_id}.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
 
 
 def show_matching() -> None:
@@ -447,7 +476,7 @@ def show_matching() -> None:
 
     if st.button("Find compatible units"):
         matches = query_df(
-            "SELECT * FROM compatible_units_for_recipient(%s);",
+            "SELECT * FROM find_matching_units_for_recipient(%s);",
             (recipient_options[recipient_label],),
         )
         if matches.empty:

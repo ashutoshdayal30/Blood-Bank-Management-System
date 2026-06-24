@@ -82,6 +82,27 @@ WHERE br.status = 'pending'
   AND bu.expiry_date >= CURRENT_DATE
 ORDER BY br.request_id, bu.expiry_date;
 
+-- Stored function: available units for one blood type.
+SELECT *
+FROM get_available_units_by_blood_type('O-');
+
+-- Stored function: compatible donor blood types for a recipient blood type.
+SELECT *
+FROM get_compatible_blood_types('A+');
+
+-- Stored function: available compatible units for one recipient.
+SELECT *
+FROM find_matching_units_for_recipient(1);
+
+-- Stored procedure: fulfill a request with one selected compatible unit.
+-- Run inside a transaction while testing so you can roll it back if needed.
+BEGIN;
+CALL fulfill_blood_request(1, 1);
+SELECT *
+FROM blood_request_units
+WHERE request_id = 1;
+ROLLBACK;
+
 -- Recent inventory log entries.
 SELECT
     il.created_at,
