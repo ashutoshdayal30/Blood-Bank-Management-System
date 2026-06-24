@@ -68,13 +68,13 @@ cp .env.example .env
 Create the database schema, indexes, and stored functions:
 
 ```bash
-python scripts/setup_database.py
+python3 scripts/setup_database.py
 ```
 
 Load sample CSV data:
 
 ```bash
-python scripts/seed_database.py
+python3 scripts/seed_database.py
 ```
 
 Run the Streamlit app:
