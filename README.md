@@ -1,29 +1,110 @@
 # Blood Bank Management System
 
-A small PostgreSQL and Streamlit project for managing donors, recipients, hospitals, blood units, and hospital blood requests.
+A PostgreSQL-backed blood bank inventory and request management system built with Python and Streamlit.
 
-I made this project to practice relational database design in a realistic workflow. The main focus is the database: normalized tables, constraints, indexes, joins, functions, seed data, and a simple UI that proves the schema works.
+This project models a small blood bank workflow: donors give blood, blood units are added to inventory, hospitals create requests for recipients, and compatible units are matched and marked as used. The main focus is the database design and SQL workflow, with Streamlit providing a simple interface to use the system.
 
-## What This Project Covers
+## Features
 
-- Normalized PostgreSQL schema for donors, donations, blood units, recipients, hospitals, requests, matched units, and inventory logs
-- Primary keys, foreign keys, check constraints, unique constraints, and date checks
-- Useful indexes for inventory, request, donor, recipient, and join queries
-- PostgreSQL functions and procedures for blood compatibility, inventory lookup, matching, request fulfillment, and audit logs
-- CSV seed data with fake sample records
-- Python scripts for database setup and seeding
-- Streamlit pages for dashboard metrics, donors, recipients, inventory, requests, and matching
-- Basic pytest checks for helper logic and seed data quality
+- Donor and recipient management
+- Blood inventory tracking
+- Blood request workflow
+- Compatible blood matching
+- PostgreSQL stored procedures/functions
+- Indexed and normalized relational database
+- CSV-based seed data
+- Streamlit dashboard
 
 ## Tech Stack
 
+- Python
 - PostgreSQL
-- Python 3.10+
 - Streamlit
-- psycopg2
+- SQL
+- Docker
 - pandas
-- Docker Compose
-- pytest
+
+## Database Design
+
+The database is organized around the core parts of a blood bank system:
+
+- `donors` stores donor profile details and blood type.
+- `donations` records donation events and connects each donation to a donor.
+- `blood_units` tracks individual units in inventory, including blood type, status, collection date, and expiration date.
+- `recipients` stores recipient details and required blood type.
+- `hospitals` stores hospitals that place blood requests.
+- `blood_requests` records requests made for recipients through hospitals.
+- `blood_request_units` links fulfilled requests to the specific blood units used.
+- `inventory_logs` keeps a history of important inventory changes.
+
+The main relationship flow is:
+
+```text
+donor -> donation -> blood_unit -> blood_request_units -> blood_request -> recipient / hospital
+```
+
+This keeps the data normalized while still making it easy to trace a used blood unit back to the donor, request, recipient, and hospital.
+
+## Setup Instructions
+
+Start PostgreSQL with Docker:
+
+```bash
+docker-compose up -d
+```
+
+Install Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Create the local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Create the database schema, indexes, and stored functions:
+
+```bash
+python scripts/setup_database.py
+```
+
+Load sample CSV data:
+
+```bash
+python scripts/seed_database.py
+```
+
+Run the Streamlit app:
+
+```bash
+streamlit run app.py
+```
+
+## What This Project Demonstrates
+
+This project is mainly meant to show practical SQL and relational database work:
+
+- Relational database architecture using separate tables for donors, donations, inventory, recipients, hospitals, requests, and logs
+- SQL queries and joins for donor-to-unit, recipient-to-request, hospital-to-request, and request-to-unit workflows
+- Stored procedures/functions for blood compatibility, inventory lookup, matching, request fulfillment, and inventory logging
+- Indexing for common lookup paths such as blood type, inventory status, request status, hospitals, recipients, and request-unit joins
+- Normalized tables that avoid storing the same relationship in multiple places
+- Real-time inventory lookup through the Streamlit app using PostgreSQL queries
+
+## Stored Functions and Procedures
+
+The database includes PostgreSQL routines for the main workflow:
+
+- `get_available_units_by_blood_type(input_blood_type)`
+- `get_compatible_blood_types(recipient_blood_type)`
+- `find_matching_units_for_recipient(recipient_id)`
+- `fulfill_blood_request(request_id, blood_unit_id)`
+- `add_inventory_log(...)`
+
+The app uses these routines in the blood matching and request fulfillment pages.
 
 ## Project Structure
 
@@ -31,144 +112,23 @@ I made this project to practice relational database design in a realistic workfl
 .
 ├── app.py
 ├── data/
-│   ├── blood_requests.csv
-│   ├── blood_units.csv
-│   ├── donors.csv
-│   ├── hospitals.csv
-│   └── recipients.csv
 ├── database/
-│   ├── functions.sql
-│   ├── indexes.sql
-│   ├── queries.sql
 │   ├── schema.sql
-│   └── seed.sql
+│   ├── indexes.sql
+│   ├── functions.sql
+│   └── queries.sql
 ├── scripts/
-│   ├── seed_database.py
-│   └── setup_database.py
 ├── src/
-│   ├── blood_compatibility.py
-│   └── db.py
 ├── tests/
-│   ├── test_blood_compatibility.py
-│   └── test_seed_files.py
 ├── docker-compose.yml
 ├── requirements.txt
 └── .env.example
 ```
 
-## Database Design
-
-The schema is split into separate tables so the same information is not stored in multiple places.
-
-- `donors`: donor profile and blood type
-- `donations`: donation events tied to donors
-- `blood_units`: inventory units created from donations
-- `recipients`: recipient profile and blood type
-- `hospitals`: hospitals that make requests
-- `blood_requests`: request records from hospitals for recipients
-- `blood_request_units`: join table that records which units were matched or used for a request
-- `inventory_logs`: audit trail for inventory status changes
-
-This keeps the flow traceable:
-
-```text
-donor -> donation -> blood_unit -> blood_request_units -> blood_request -> recipient / hospital
-```
-
-## Setup
-
-Start PostgreSQL:
-
-```bash
-docker-compose up -d
-```
-
-Create a local `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Create the database tables, indexes, and functions:
-
-```bash
-python scripts/setup_database.py
-```
-
-Load the CSV sample data:
-
-```bash
-python scripts/seed_database.py
-```
-
-Run the app:
-
-```bash
-streamlit run app.py
-```
-
-The sidebar includes pages for Dashboard, Donors, Recipients, Blood Inventory, Blood Requests, and Match Blood Units.
-
-## Stored Functions and Procedure
-
-Most of the blood bank workflow is handled in PostgreSQL instead of being hidden in Python code.
-
-- `get_available_units_by_blood_type(input_blood_type)` returns available units for one blood type with donor name, collection date, expiration date, and status.
-- `get_compatible_blood_types(recipient_blood_type)` returns donor blood types that can be given to a recipient blood type.
-- `find_matching_units_for_recipient(recipient_id)` returns available units that match one recipient.
-- `fulfill_blood_request(request_id, blood_unit_id)` is a stored procedure that marks a request as fulfilled, marks the selected unit as used, records the request/unit match, and writes an inventory log row.
-- `add_inventory_log(...)` is a helper function used by the fulfillment workflow.
-
-The app uses these database routines in the Matching and Requests pages. The Matching page calls `find_matching_units_for_recipient`, and the Requests page calls `fulfill_blood_request` after a compatible unit is selected.
-
-## Demo SQL
-
-The file `database/queries.sql` has ready-to-run SQL examples for:
-
-- inventory counts by blood type
-- donor to blood unit joins
-- recipient to request joins
-- hospital to request joins
-- request to matched blood unit joins
-- compatible unit lookup for pending requests
-- recent inventory log review
-- stored function and procedure examples
-
-Example:
-
-```sql
-SELECT
-    d.first_name || ' ' || d.last_name AS donor_name,
-    bu.unit_code,
-    bu.blood_type,
-    bu.status
-FROM donors d
-JOIN donations dn ON d.donor_id = dn.donor_id
-JOIN blood_units bu ON dn.donation_id = bu.donation_id
-ORDER BY bu.collection_date DESC;
-```
-
-## Tests
+## Testing
 
 ```bash
 pytest
 ```
 
-The tests check the blood compatibility helper and basic seed data consistency.
-
-## Notes
-
-All records are fake sample data. The project does not include authentication or deployment because the goal is to keep the database workflow clear and easy to run locally.
-
-Possible improvements:
-
-- Add reports for low-stock blood types
-- Add donor appointment scheduling
-- Track separate blood components such as plasma and platelets
-- Add integration tests that run against the Docker database
+The tests cover blood compatibility logic and basic seed data checks.
