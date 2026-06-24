@@ -1,4 +1,5 @@
 __pycache__/
+**/__pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
@@ -6,8 +7,18 @@ venv/
 .env
 .DS_Store
 *.log
+
+# Local database/runtime files
 postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# Local Streamlit files
 .streamlit/secrets.toml
+.streamlit/cache/
+
 Start Here.txt
 work/
 outputs/

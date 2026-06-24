@@ -532,7 +532,7 @@ def show_matching() -> None:
 
 def main() -> None:
     apply_page_styles()
-    st.title("Blood Bank Operations")
+    st.title("Blood Bank Management System")
     st.caption("PostgreSQL inventory tracking, request handling, and compatibility matching.")
 
     page = st.sidebar.radio(

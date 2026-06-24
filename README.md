@@ -2,6 +2,8 @@
 
 A PostgreSQL-backed blood bank inventory and request management system built with Python and Streamlit.
 
+## Project Overview
+
 This project models a small blood bank workflow: donors give blood, blood units are added to inventory, hospitals create requests for recipients, and compatible units are matched and marked as used. The main focus is the database design and SQL workflow, with Streamlit providing a simple interface to use the system.
 
 ## Features
@@ -56,7 +58,7 @@ docker-compose up -d
 Install Python dependencies:
 
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Create the local environment file:
@@ -83,18 +85,7 @@ Run the Streamlit app:
 streamlit run app.py
 ```
 
-## What This Project Demonstrates
-
-This project is mainly meant to show practical SQL and relational database work:
-
-- Relational database architecture using separate tables for donors, donations, inventory, recipients, hospitals, requests, and logs
-- SQL queries and joins for donor-to-unit, recipient-to-request, hospital-to-request, and request-to-unit workflows
-- Stored procedures/functions for blood compatibility, inventory lookup, matching, request fulfillment, and inventory logging
-- Indexing for common lookup paths such as blood type, inventory status, request status, hospitals, recipients, and request-unit joins
-- Normalized tables that avoid storing the same relationship in multiple places
-- Real-time inventory lookup through the Streamlit app using PostgreSQL queries
-
-## Stored Functions and Procedures
+## Stored Procedures / SQL Functions
 
 The database includes PostgreSQL routines for the main workflow:
 
@@ -105,6 +96,17 @@ The database includes PostgreSQL routines for the main workflow:
 - `add_inventory_log(...)`
 
 The app uses these routines in the blood matching and request fulfillment pages.
+
+## SQL Skills Shown
+
+This project is mainly meant to show practical SQL and relational database work:
+
+- Relational database architecture using separate tables for donors, donations, inventory, recipients, hospitals, requests, and logs
+- SQL queries and joins for donor-to-unit, recipient-to-request, hospital-to-request, and request-to-unit workflows
+- Stored procedures and functions for blood compatibility, inventory lookup, matching, request fulfillment, and inventory logging
+- Indexing for common lookup paths such as blood type, inventory status, request status, hospitals, recipients, and request-unit joins
+- Normalized tables that avoid storing the same relationship in multiple places
+- Real-time inventory lookup through the Streamlit app using PostgreSQL queries
 
 ## Project Structure
 
@@ -125,7 +127,7 @@ The app uses these routines in the blood matching and request fulfillment pages.
 └── .env.example
 ```
 
-## Testing
+## How to Run Tests
 
 ```bash
 pytest
